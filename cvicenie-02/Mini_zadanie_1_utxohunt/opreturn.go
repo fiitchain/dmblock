@@ -20,7 +20,7 @@ func OpReturnTxBuilder() *wire.MsgTx {
 	tx.Version = 2
 
 	// put the input txid here (your own)
-	hashStr := ""
+	hashStr := "4fa51986331881911665d281a21d43ec94f26df383e5eaa8cf870480e939b86e"
 
 	outpointTxid, err := chainhash.NewHashFromStr(hashStr)
 	if err != nil {
@@ -38,7 +38,7 @@ func OpReturnTxBuilder() *wire.MsgTx {
 
 	// Put a message here with your name or MIT ID number so I can find your
 	// submission on the blockchain.
-	opReturnData := []byte("6892 Put message here")
+	opReturnData := []byte("6892 96679MarekB")
 	// build the op_return output script
 	// this is the OP_RETURN opcode, followed by a data push opcode, then the data.
 	opReturnScript, err :=
@@ -53,7 +53,7 @@ func OpReturnTxBuilder() *wire.MsgTx {
 	// next, build the pubkey hash output.  This the same as before in the EZ function.
 	// put the address you're sending to here.  It's the same as the address you're
 	// spending from!
-	sendToAddressString := ""
+	sendToAddressString := "1Ak7SfETKgTDxK9LCUNb9kZGqDMGDSUG4A"
 	sendToAddress, err := btcutil.DecodeAddress(sendToAddressString, testnet3Parameters)
 	if err != nil {
 		panic(err)
@@ -66,7 +66,7 @@ func OpReturnTxBuilder() *wire.MsgTx {
 
 	// put a bit less than your input amount, so that there is a fee for the miners
 	// this will ensure miners put your transaction in a block.
-	p2pkhOutput := wire.NewTxOut(123450000, sendToScript)
+	p2pkhOutput := wire.NewTxOut(1400000, sendToScript)
 
 	// put the tx together, 1 input, 2 outputs.
 	tx.AddTxIn(input)
@@ -77,7 +77,7 @@ func OpReturnTxBuilder() *wire.MsgTx {
 	// we already know the address you're sending from
 	spendFromScript, err := txscript.PayToAddrScript(sendToAddress)
 
-	phraseHash := chainhash.DoubleHashB([]byte("private key here"))
+	phraseHash := chainhash.DoubleHashB([]byte("10_minut_na_zadanie_VYBAVENE_OK"))
 	priv, _ := btcec.PrivKeyFromBytes(btcec.S256(), phraseHash)
 
 	pubSig, err := txscript.SignatureScript(

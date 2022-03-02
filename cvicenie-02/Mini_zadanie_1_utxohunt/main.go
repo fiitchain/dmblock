@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/adiabat/btcd/chaincfg"
+	"bytes"
 )
 
 var (
@@ -19,18 +20,20 @@ func main() {
 	// Task #1 make an address pair
 	// Call AddressFrom PrivateKey() to make a keypair
 
-	s, err := AddressFromPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("address: %s\n", s)
+	//s, err := AddressFromPrivateKey()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Printf("address: %s\n", s)
 
 	// Task #2 make a transaction
 	// Call EZTxBuilder to make a transaction
-	//	tx := EZTxBuilder()
-	//	var buf bytes.Buffer
-	//	tx.Serialize(&buf)
-	//	fmt.Printf("tx in hex:\n%x\n", buf.Bytes())
+		//tx := EZTxBuilder()
+		tx := OpReturnTxBuilder()
+		
+		var buf bytes.Buffer
+		tx.Serialize(&buf)
+		fmt.Printf("tx in hex:\n%x\n", buf.Bytes())
 	//
 
 	// task 3, call OpReturnTxBuilder() the same way EZTxBuilder() was used
