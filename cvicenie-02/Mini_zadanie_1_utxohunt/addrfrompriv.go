@@ -14,7 +14,7 @@ func AddressFromPrivateKey() (string, error) {
 	// private key is the hash of some string (better to use real randomness
 	// or a real KDF but this is OK for class.
 	// Put any phrase you want here to make your own private key.
-	phraseHash := chainhash.DoubleHashB([]byte("private key goes here"))
+	phraseHash := chainhash.DoubleHashB([]byte("10_minut_na_zadanie_VYBAVENE_OK"))
 
 	// make a new private key struct.  Private key structs also have a pubkey in them
 	priv, _ := btcec.PrivKeyFromBytes(btcec.S256(), phraseHash)
