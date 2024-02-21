@@ -69,7 +69,7 @@ Some of the transactions have many outputs, some only one.  The outputs are on t
 
 Outpoints are defined by a txid and the output number.  On the block explorer page, the output on the top right is output 0, then 1, 2, etc.
 
-You need to look for unspent outputs which are sent to the same address.  The private key which led to this script is the double-sha256 of "BTC secret key MIT".
+You need to look for unspent outputs which are sent to the same address.  The private key which led to this script is the double-sha256 of "BTC secret key FIIT".
 
 You're going to find and claim an unspent output in this transaction.  Please be nice and leave the rest of them for your other classmates!
 
