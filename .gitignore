@@ -1,2 +1,2 @@
-
-cvicenie-02/.DS_Store
+*.DS_Store*
+__pycache__
