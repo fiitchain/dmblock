@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMBLOCK — Consensus Visualizer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg0:#0d1117;--bg1:#161b22;--bg2:#21262d;--bg3:#1c2128;
+  --bd:#30363d;--tx:#e6edf3;--tx2:#8b949e;--tx3:#484f58;
+  --blue:#58a6ff;--green:#3fb950;--orange:#d29922;--red:#f85149;
+  --purple:#bc8cff;--gold:#f0c040;--cyan:#39d2c0;
+  --r:8px;--rs:4px;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg0);color:var(--tx)}
+body{display:flex;flex-direction:column;overflow:hidden}
+.mono{font-family:'SF Mono',Monaco,'Fira Code',Consolas,monospace}
+
+nav{display:flex;align-items:center;height:48px;background:var(--bg1);border-bottom:1px solid var(--bd);padding:0 20px;gap:20px;flex-shrink:0}
+.nav-brand{font-weight:700;font-size:15px;color:var(--tx);letter-spacing:-.3px;white-space:nowrap}
+.nav-brand span{color:var(--accent,var(--blue));margin-right:6px;transition:color .3s}
+.nav-tabs{display:flex;gap:4px}
+.nav-tab{background:none;border:none;color:var(--tx2);font-size:13px;font-weight:500;padding:7px 16px;border-radius:6px;cursor:pointer;transition:all .15s}
+.nav-tab:hover{background:var(--bg2);color:var(--tx)}
+.nav-tab.active{background:var(--accent,var(--blue));color:#fff}
+
+.toolbar{display:flex;align-items:center;gap:14px;padding:8px 20px;background:var(--bg1);border-bottom:1px solid var(--bd);flex-shrink:0;flex-wrap:wrap}
+.controls{display:flex;gap:5px}
+.btn{border:1px solid var(--bd);background:var(--bg2);color:var(--tx);font-size:12px;font-weight:500;padding:5px 12px;border-radius:var(--rs);cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--tx3);background:#2d333b}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.primary{background:var(--accent,#238636);border-color:var(--accent,#238636);color:#fff}
+.btn.primary:hover:not(:disabled){opacity:.85}
+.speed-wrap{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--tx2)}
+.speed-wrap input[type=range]{width:110px;accent-color:var(--accent,var(--blue))}
+.speed-label{min-width:42px;text-align:right;color:var(--tx3);font-size:11px}
+
+.main-wrap{display:flex;flex-direction:column;flex:1;min-height:0}
+.algo-panel{display:none;flex-direction:column;flex:1;min-height:0}
+.algo-panel.active{display:flex}
+.algo-desc{font-size:12px;color:var(--tx2);padding:10px 20px;background:var(--bg1);border-bottom:1px solid var(--bd);line-height:1.6;flex-shrink:0}
+.algo-desc strong{color:var(--tx)}
+.algo-body{display:flex;flex:1;min-height:0;overflow:hidden}
+.viz-area{flex:1;position:relative;min-width:0;overflow:hidden}
+.viz-area svg{position:absolute;inset:0;width:100%;height:100%}
+.side-panel{width:270px;background:var(--bg1);border-left:1px solid var(--bd);padding:14px;overflow-y:auto;font-size:12px;flex-shrink:0}
+.side-panel h3{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
+.side-panel h3:not(:first-child){margin-top:14px}
+
+.node-state{display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:var(--rs);margin-bottom:2px;font-size:11px;cursor:pointer;transition:background .15s}
+.node-state:hover{background:var(--bg2)}
+.node-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.node-info{flex:1;color:var(--tx2)}
+.node-info b{color:var(--tx);font-weight:600}
+.param-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.param-row label{min-width:80px;color:var(--tx2)}
+.param-row input[type=range]{flex:1;accent-color:var(--accent,var(--blue))}
+.param-val{min-width:24px;text-align:center;color:var(--blue);font-weight:600;font-size:13px}
+.stat-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--tx2)}
+.stat-row span:last-child{color:var(--tx);font-weight:500}
+.propose-wrap{display:flex;gap:6px;margin-top:6px}
+.propose-wrap input{flex:1;background:var(--bg2);border:1px solid var(--bd);color:var(--tx);padding:5px 9px;border-radius:var(--rs);font-size:12px;outline:none}
+.propose-wrap input:focus{border-color:var(--blue)}
+.bar-chart{display:flex;height:22px;border-radius:var(--rs);overflow:hidden;margin:6px 0;background:var(--bg2)}
+.bar-seg{transition:width .4s ease;min-width:2px}
+
+.log-panel{height:140px;min-height:140px;display:flex;flex-direction:column;background:var(--bg1);border-top:1px solid var(--bd);flex-shrink:0}
+.log-header{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px}
+.log-entries{flex:1;overflow-y:auto;padding:4px 16px;font-size:11px;line-height:1.7}
+.log-entry{color:var(--tx2)}
+.log-entry .lt{color:var(--tx3);margin-right:6px}
+.log-entry.success{color:var(--green)}
+.log-entry.error{color:var(--red)}
+.log-entry.warn{color:var(--orange)}
+.log-entry.milestone{color:var(--purple);font-weight:600}
+.log-entries::-webkit-scrollbar{width:5px}
+.log-entries::-webkit-scrollbar-track{background:transparent}
+.log-entries::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+
+svg text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;pointer-events:none;user-select:none}
+
+/* POW */
+.pow-viz{display:flex;flex-direction:column;position:absolute;inset:0;padding:10px;gap:10px;overflow:hidden}
+.chain-area{background:var(--bg2);border-radius:var(--r);padding:10px;overflow-x:auto;display:flex;align-items:center;gap:0;min-height:82px;flex-shrink:0}
+.chain-area::-webkit-scrollbar{height:4px}
+.chain-area::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+.blk{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:7px 10px;min-width:100px;font-size:10px;flex-shrink:0}
+.blk.genesis{border-color:var(--purple);background:#1a1530}
+.blk-num{font-weight:700;font-size:12px;margin-bottom:3px;color:var(--tx)}
+.blk-hash{color:var(--green);word-break:break-all}
+.blk-miner{color:var(--orange);margin-top:2px}
+.chain-arrow{color:var(--tx3);font-size:18px;padding:0 4px;flex-shrink:0}
+.miners-area{display:flex;gap:8px;flex:1;overflow-x:auto;overflow-y:auto;min-height:0;align-items:flex-start}
+.miner-card{min-width:140px;max-width:200px;flex:1 1 0;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:0}
+.miner-name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.miner-name .mdot{width:8px;height:8px;border-radius:50%;background:var(--orange);animation:pulse 1s infinite}
+.miner-stat{font-size:10px;color:var(--tx2);padding:1px 0}
+.miner-blocks{font-size:11px;color:var(--gold);font-weight:600;padding:2px 0}
+.miner-state{font-size:10px;color:var(--tx2);padding:3px 0;border-bottom:1px solid var(--bd);margin-bottom:2px}
+.miner-mem{max-height:80px;overflow-y:auto;font-size:9px;padding:3px 0}
+.miner-mem::-webkit-scrollbar{width:3px}.miner-mem::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+.mem-row{color:var(--tx3);padding:1px 0}.mem-row.found{color:var(--green);font-weight:600}
+.miner-chain{font-size:9px;padding:4px 0;border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);margin:3px 0}
+.mchain-row{display:flex;gap:4px;padding:1px 0;color:var(--tx3)}
+.mchain-row .mc-num{color:var(--tx2);font-weight:600;min-width:20px}
+.mchain-row .mc-hash{color:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.snow-legend{display:flex;gap:14px;padding:6px 0;flex-wrap:wrap}
+.snow-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2)}
+.snow-legend-dot{width:12px;height:12px;border-radius:50%}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand"><span>&#9670;</span> DMBLOCK Consensus Visualizer</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="raft">Raft</button>
+    <button class="nav-tab" data-tab="snowman">Snowman (AVAX)</button>
+    <button class="nav-tab" data-tab="pow">Proof of Work</button>
+    <button class="nav-tab" data-tab="tendermint">Tendermint</button>
+    <button class="nav-tab" data-tab="dpos">DPoS</button>
+  </div>
+</nav>
+
+<div class="toolbar">
+  <div class="controls">
+    <button class="btn primary" id="btn-start">&#9654; Start</button>
+    <button class="btn" id="btn-pause" disabled>&#9646;&#9646; Pause</button>
+    <button class="btn" id="btn-step">&#8594; Step</button>
+    <button class="btn" id="btn-reset">&#8634; Reset</button>
+  </div>
+  <div class="speed-wrap">
+    <span>Speed:</span>
+    <input type="range" id="speed-slider" min="1" max="100" value="40">
+    <span class="speed-label" id="speed-display">600ms</span>
+  </div>
+</div>
+
+<div class="main-wrap">
+
+  <!-- RAFT -->
+  <section id="panel-raft" class="algo-panel active">
+    <div class="algo-desc">
+      <strong>Raft Consensus:</strong> Each follower has a <b style="color:var(--cyan)">random election timeout</b> (arc around node).
+      When the arc drains to zero the node becomes a <b style="color:var(--orange)">Candidate</b> and calls an election.
+      A majority vote makes it the <b style="color:var(--gold)">Leader</b>, who resets followers' timers with heartbeats.
+      <strong>Click nodes to crash/recover.</strong>
+    </div>
+    <div class="algo-body">
+      <div class="viz-area" id="raft-viz-area"></div>
+      <div class="side-panel">
+        <h3>Node States</h3>
+        <div id="raft-states"></div>
+        <h3>Propose Value</h3>
+        <div class="propose-wrap">
+          <input type="text" id="raft-propose-input" placeholder="e.g. x=7">
+          <button class="btn" id="raft-propose-btn">Send</button>
+        </div>
+        <div style="margin-top:5px;color:var(--tx3);font-size:11px">Sent to the current leader for replication.</div>
+        <h3>Cluster Info</h3>
+        <div id="raft-stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SNOWMAN -->
+  <section id="panel-snowman" class="algo-panel">
+    <div class="algo-desc">
+      <strong>Snowball (Avalanche):</strong> Each node repeatedly samples <b>k</b> random peers.
+      If <b>&alpha;</b>+ agree on a color, the node's <b>confidence counter</b> grows.
+      If the majority disagrees, the node <em>flips</em> and resets confidence.
+      After <b>&beta;</b> consecutive confirmations the decision is <b style="color:var(--green)">final</b>.
+      <strong>Click nodes to flip preference.</strong>
+    </div>
+    <div class="algo-body">
+      <div class="viz-area" id="snow-viz-area"></div>
+      <div class="side-panel">
+        <h3>Grid &amp; Parameters</h3>
+        <div class="param-row"><label>N (grid N&times;N):</label><input type="range" id="snow-n" min="2" max="8" value="4"><span class="param-val" id="snow-n-val">4</span></div>
+        <div class="param-row"><label>k (sample):</label><input type="range" id="snow-k" min="2" max="8" value="4"><span class="param-val" id="snow-k-val">4</span></div>
+        <div class="param-row"><label>&alpha; (quorum):</label><input type="range" id="snow-alpha" min="2" max="8" value="3"><span class="param-val" id="snow-alpha-val">3</span></div>
+        <div class="param-row"><label>&beta; (decide):</label><input type="range" id="snow-beta" min="3" max="20" value="10"><span class="param-val" id="snow-beta-val">10</span></div>
+        <h3>Distribution</h3>
+        <div class="bar-chart" id="snow-bar"></div>
+        <div id="snow-dist"></div>
+        <h3>Statistics</h3>
+        <div id="snow-stats"></div>
+        <h3>Legend</h3>
+        <div class="snow-legend">
+          <div class="snow-legend-item"><div class="snow-legend-dot" style="background:var(--red)"></div>Red</div>
+          <div class="snow-legend-item"><div class="snow-legend-dot" style="background:var(--blue)"></div>Blue</div>
+          <div class="snow-legend-item"><div class="snow-legend-dot" style="background:var(--green);border:2px solid var(--green)"></div>Decided</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POW -->
+  <section id="panel-pow" class="algo-panel">
+    <div class="algo-desc">
+      <strong>Proof of Work:</strong> Miners race to find a nonce producing a hash with
+      <b style="color:var(--green)">leading zeros</b>. Higher difficulty = more zeros = exponentially more work.
+      First to find a valid hash mines the next block.
+    </div>
+    <div class="algo-body">
+      <div class="viz-area" style="position:relative;overflow:auto">
+        <div class="pow-viz">
+          <div class="chain-area" id="pow-chain"></div>
+          <div class="miners-area" id="pow-miners"></div>
+        </div>
+      </div>
+      <div class="side-panel">
+        <h3>Settings</h3>
+        <div class="param-row"><label>Difficulty:</label><input type="range" id="pow-diff" min="1" max="5" value="2"><span class="param-val" id="pow-diff-val">2</span></div>
+        <div class="param-row"><label>Miners:</label><input type="range" id="pow-miners-count" min="1" max="6" value="3"><span class="param-val" id="pow-miners-val">3</span></div>
+        <div style="margin-top:2px;color:var(--tx3);font-size:11px">Target: hash starts with <span id="pow-target" class="mono" style="color:var(--green)">00</span>...</div>
+        <h3>Statistics</h3>
+        <div id="pow-stats"></div>
+        <h3>How It Works</h3>
+        <div style="color:var(--tx2);font-size:11px;line-height:1.7">
+          Each miner tries random nonces.<br>
+          hash(block data + nonce) &rarr; hex string.<br>
+          If it starts with the required zeros, the block is valid.<br>
+          Difficulty <i>d</i> needs ~16<sup>d</sup> attempts on average.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TENDERMINT -->
+  <section id="panel-tendermint" class="algo-panel">
+    <div class="algo-desc">
+      <strong>Tendermint BFT</strong> (Cosmos) — Validators take turns proposing blocks (round-robin).
+      3 lockstep phases: <b style="color:var(--gold)">Propose</b> &rarr; <b style="color:var(--blue)">Prevote</b> &rarr; <b style="color:var(--green)">Precommit</b>.
+      Each phase needs &gt;2/3 votes. If the proposer is offline the round times out.
+      Tolerates up to 1/3 faulty validators. <strong>Click nodes to crash/recover.</strong>
+    </div>
+    <div class="algo-body">
+      <div class="viz-area" id="tend-viz-area"></div>
+      <div class="side-panel">
+        <h3>Parameters</h3>
+        <div class="param-row"><label>Validators:</label><input type="range" id="tend-n" min="4" max="10" value="7"><span class="param-val" id="tend-n-val">7</span></div>
+        <h3>Validator States</h3>
+        <div id="tend-states"></div>
+        <h3>Statistics</h3>
+        <div id="tend-stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DPOS -->
+  <section id="panel-dpos" class="algo-panel">
+    <div class="algo-desc">
+      <strong>Delegated Proof of Stake</strong> (EOS, TRON) — Token holders vote for delegate candidates.
+      The top <b>N</b> by votes are elected to produce blocks in a <b style="color:var(--gold)">round-robin</b> schedule.
+      If a delegate goes offline their slot is <b style="color:var(--red)">skipped</b>.
+      Adjust votes to change who gets elected. <strong>Click delegates to take offline.</strong>
+    </div>
+    <div class="algo-body">
+      <div class="viz-area" id="dpos-viz-area"></div>
+      <div class="side-panel">
+        <h3>Election Settings</h3>
+        <div class="param-row"><label>Seats:</label><input type="range" id="dpos-seats" min="2" max="7" value="3"><span class="param-val" id="dpos-seats-val">3</span></div>
+        <h3>Candidate Votes</h3>
+        <div id="dpos-votes"></div>
+        <div style="margin-top:6px"><button class="btn" id="dpos-randomize" style="width:100%">Randomize Votes</button></div>
+        <h3>Statistics</h3>
+        <div id="dpos-stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <div class="log-panel">
+    <div class="log-header"><span>Event Log</span><button class="btn" id="btn-clear-log" style="padding:2px 8px;font-size:10px">Clear</button></div>
+    <div class="log-entries" id="log-entries"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  UTILITIES
+// ============================================================
+const NS='http://www.w3.org/2000/svg';
+function sv(tag,a){const e=document.createElementNS(NS,tag);if(a)for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e}
+function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=randInt(0,i);[r[i],r[j]]=[r[j],r[i]]}return r}
+function fmt(n){return n.toLocaleString()}
+function computeHash(s){
+  let h1=0xdeadbeef,h2=0x41c6ce57;
+  for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);
+  return(h2>>>0).toString(16).padStart(8,'0')+(h1>>>0).toString(16).padStart(8,'0');
+}
+
+// SVG arc path: fraction 0..1  from 12-o'clock clockwise
+function arcPath(cx,cy,r,frac){
+  if(frac<=0) return '';
+  if(frac>=0.9999){
+    // full circle via two semi-arcs
+    return `M${cx},${cy-r}A${r},${r},0,1,1,${cx},${cy+r}A${r},${r},0,1,1,${cx},${cy-r}`;
+  }
+  const a=frac*2*Math.PI;
+  const ex=cx+r*Math.sin(a), ey=cy-r*Math.cos(a);
+  const big=a>Math.PI?1:0;
+  return `M${cx},${cy-r}A${r},${r},0,${big},1,${ex},${ey}`;
+}
+
+// ============================================================
+//  RAFT
+// ============================================================
+class RaftSim {
+  constructor(){
+    this.N=5; this.eventLog=[]; this.nodeEls=[]; this.anims=[]; this.animId=null;
+    this.positions=[];
+    for(let i=0;i<this.N;i++){
+      const a=-Math.PI/2+i*2*Math.PI/this.N;
+      this.positions.push({x:260+148*Math.cos(a),y:220+148*Math.sin(a)});
+    }
+    this._initState();
+  }
+
+  _initState(){
+    this.tick=0; this.eventLog=[]; this.messages=[]; this.anims=[];
+    this.nodes=[];
+    for(let i=0;i<this.N;i++){
+      const t=this._rndT();
+      this.nodes.push({id:i,state:'follower',term:0,votedFor:null,
+        log:[],commitIndex:-1,
+        electionTimer:t, electionTimeout:t,
+        heartbeatTimer:0,
+        alive:true,votesReceived:new Set(),nextIndex:{},matchIndex:{}});
+    }
+    this._log('Cluster initialized — 5 follower nodes');
+  }
+
+  reset(){ this._initState(); this.buildSVG(); this.render(); }
+
+  _rndT(){ return randInt(10,20); }
+  _resetTimer(n){ const t=this._rndT(); n.electionTimer=t; n.electionTimeout=t; }
+  _log(m,t='info'){ this.eventLog.push({tick:this.tick,message:m,type:t}); }
+
+  // ---- SVG ----
+  buildSVG(){
+    const container=document.getElementById('raft-viz-area');
+    if(!container) return;
+    let old=container.querySelector('svg'); if(old) old.remove();
+    if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}
+
+    const s=sv('svg',{viewBox:'0 0 520 440',preserveAspectRatio:'xMidYMid meet'});
+
+    // edges
+    for(let i=0;i<this.N;i++) for(let j=i+1;j<this.N;j++){
+      s.appendChild(sv('line',{x1:this.positions[i].x,y1:this.positions[i].y,
+        x2:this.positions[j].x,y2:this.positions[j].y,stroke:'#1e2430','stroke-width':1,'stroke-dasharray':'5,5'}));
+    }
+
+    // nodes
+    this.nodeEls=[];
+    for(let i=0;i<this.N;i++){
+      const p=this.positions[i];
+      const g=sv('g',{cursor:'pointer'});
+
+      // timeout arc (drawn behind node)
+      const arc=sv('path',{d:'',fill:'none',stroke:'#39d2c0','stroke-width':3,opacity:.6,'stroke-linecap':'round'});
+
+      // main circle
+      const circle=sv('circle',{cx:p.x,cy:p.y,r:30,fill:'#152540',stroke:'#58a6ff','stroke-width':2.5});
+
+      // id label
+      const idLbl=sv('text',{x:p.x,y:p.y+1,'text-anchor':'middle','dominant-baseline':'central',fill:'#fff','font-size':'14','font-weight':'bold'});
+      idLbl.textContent='N'+i;
+
+      // state label below
+      const stLbl=sv('text',{x:p.x,y:p.y+46,'text-anchor':'middle',fill:'#8b949e','font-size':'11'});
+      stLbl.textContent='Follower';
+
+      // term label above
+      const tLbl=sv('text',{x:p.x,y:p.y-46,'text-anchor':'middle',fill:'#484f58','font-size':'10'});
+      tLbl.textContent='T:0';
+
+      // timer tick label (small, next to arc)
+      const timerLbl=sv('text',{x:p.x+36,y:p.y-28,'text-anchor':'start',fill:'#39d2c0','font-size':'9',opacity:.8});
+      timerLbl.textContent='';
+
+      // dead marker
+      const deadMark=sv('text',{x:p.x,y:p.y+2,'text-anchor':'middle','dominant-baseline':'central',fill:'#f85149','font-size':'26','font-weight':'bold',opacity:0});
+      deadMark.textContent='\u2715';
+
+      g.append(arc,circle,idLbl,stLbl,tLbl,timerLbl,deadMark);
+      const idx=i;
+      g.addEventListener('click',()=>{this.toggleNode(idx);if(window.app)app.updateLog();});
+      s.appendChild(g);
+      this.nodeEls.push({circle,stLbl,tLbl,deadMark,idLbl,arc,timerLbl});
+    }
+
+    // message layer on top
+    this.msgLayer=sv('g');
+    s.appendChild(this.msgLayer);
+    container.appendChild(s);
+    this._startAnimLoop();
+  }
+
+  _startAnimLoop(){
+    const loop=()=>{
+      const now=performance.now();
+      for(let i=this.anims.length-1;i>=0;i--){
+        const a=this.anims[i];
+        const t=Math.min(1,(now-a.st)/a.dur);
+        if(t>=1){a.el.remove();this.anims.splice(i,1);}
+        else{a.el.setAttribute('cx',a.x1+(a.x2-a.x1)*t);a.el.setAttribute('cy',a.y1+(a.y2-a.y1)*t);}
+      }
+      this.animId=requestAnimationFrame(loop);
+    };
+    this.animId=requestAnimationFrame(loop);
+  }
+
+  _send(msg){
+    const delay=randInt(2,3);
+    msg.deliverAt=this.tick+delay;
+    this.messages.push(msg);
+    if(!this.msgLayer) return;
+    const f=this.positions[msg.from],t=this.positions[msg.to];
+    const colors={requestVote:'#d29922',voteResponse:'#bc8cff',appendEntries:'#58a6ff',appendResponse:'#3fb950'};
+    const dot=sv('circle',{r:4,fill:colors[msg.type]||'#58a6ff',opacity:.9,cx:f.x,cy:f.y});
+    this.msgLayer.appendChild(dot);
+    const speed=window.app?app.speed:600;
+    this.anims.push({el:dot,x1:f.x,y1:f.y,x2:t.x,y2:t.y,st:performance.now(),dur:delay*speed*.75});
+  }
+
+  step(){
+    this.tick++;
+    const arr=this.messages.filter(m=>m.deliverAt<=this.tick);
+    this.messages=this.messages.filter(m=>m.deliverAt>this.tick);
+    for(const m of arr) this._handleMsg(m);
+
+    for(const n of this.nodes){
+      if(!n.alive) continue;
+      if(n.state==='leader'){
+        n.heartbeatTimer--;
+        if(n.heartbeatTimer<=0){this._heartbeats(n);n.heartbeatTimer=5;}
+      } else {
+        n.electionTimer--;
+        if(n.electionTimer<=0) this._startElection(n);
+      }
+    }
+    this.render();
+  }
+
+  _startElection(n){
+    n.term++;n.state='candidate';n.votedFor=n.id;n.votesReceived=new Set([n.id]);
+    this._resetTimer(n);
+    this._log('N'+n.id+' starts election for term '+n.term+' (timeout was '+n.electionTimeout+')','warn');
+    for(const o of this.nodes){
+      if(o.id!==n.id&&o.alive)
+        this._send({type:'requestVote',from:n.id,to:o.id,term:n.term,
+          lastLogIndex:n.log.length-1,lastLogTerm:n.log.length?n.log[n.log.length-1].term:0});
+    }
+  }
+
+  _handleMsg(msg){
+    const n=this.nodes[msg.to]; if(!n||!n.alive) return;
+    if(msg.term>n.term){n.term=msg.term;n.state='follower';n.votedFor=null;}
+    if(msg.type==='requestVote') this._onRV(n,msg);
+    else if(msg.type==='voteResponse') this._onVR(n,msg);
+    else if(msg.type==='appendEntries') this._onAE(n,msg);
+    else if(msg.type==='appendResponse') this._onAR(n,msg);
+  }
+
+  _onRV(n,msg){
+    let g=false;
+    if(msg.term>=n.term&&(n.votedFor===null||n.votedFor===msg.from)){
+      const lt=n.log.length?n.log[n.log.length-1].term:0, li=n.log.length-1;
+      if(msg.lastLogTerm>lt||(msg.lastLogTerm===lt&&msg.lastLogIndex>=li)){
+        g=true;n.votedFor=msg.from; this._resetTimer(n);
+      }
+    }
+    this._send({type:'voteResponse',from:n.id,to:msg.from,term:n.term,granted:g});
+    if(g) this._log('N'+n.id+' votes for N'+msg.from+' (term '+msg.term+')');
+  }
+
+  _onVR(n,msg){
+    if(n.state!=='candidate'||msg.term!==n.term) return;
+    if(msg.granted){
+      n.votesReceived.add(msg.from);
+      const alive=this.nodes.filter(x=>x.alive).length;
+      if(n.votesReceived.size>alive/2){
+        n.state='leader';n.heartbeatTimer=0;
+        for(const o of this.nodes){n.nextIndex[o.id]=n.log.length;n.matchIndex[o.id]=-1;}
+        this._log('N'+n.id+' elected LEADER (term '+n.term+', '+n.votesReceived.size+'/'+alive+' votes)','success');
+      }
+    }
+  }
+
+  _heartbeats(ld){
+    for(const o of this.nodes){
+      if(o.id===ld.id||!o.alive) continue;
+      const pi=ld.nextIndex[o.id]-1;
+      const pt=pi>=0&&ld.log[pi]?ld.log[pi].term:0;
+      this._send({type:'appendEntries',from:ld.id,to:o.id,term:ld.term,
+        prevLogIndex:pi,prevLogTerm:pt,entries:ld.log.slice(ld.nextIndex[o.id]),leaderCommit:ld.commitIndex});
+    }
+  }
+
+  _onAE(n,msg){
+    if(msg.term<n.term){this._send({type:'appendResponse',from:n.id,to:msg.from,term:n.term,success:false});return;}
+    n.state='follower'; this._resetTimer(n);
+    if(msg.entries&&msg.entries.length){
+      const s=msg.prevLogIndex+1;
+      for(let i=0;i<msg.entries.length;i++) n.log[s+i]=msg.entries[i];
+      n.log.length=s+msg.entries.length;
+    }
+    if(msg.leaderCommit>n.commitIndex) n.commitIndex=Math.min(msg.leaderCommit,n.log.length-1);
+    this._send({type:'appendResponse',from:n.id,to:msg.from,term:n.term,success:true,matchIndex:n.log.length-1});
+  }
+
+  _onAR(n,msg){
+    if(n.state!=='leader') return;
+    if(msg.success){
+      if(msg.matchIndex!==undefined){n.nextIndex[msg.from]=msg.matchIndex+1;n.matchIndex[msg.from]=msg.matchIndex;}
+      for(let i=n.log.length-1;i>n.commitIndex;i--){
+        let c=1;for(const o of this.nodes) if(o.id!==n.id&&n.matchIndex[o.id]>=i) c++;
+        if(c>this.N/2&&n.log[i]&&n.log[i].term===n.term){
+          n.commitIndex=i;this._log('Committed "'+n.log[i].value+'" at index '+i,'success');break;
+        }
+      }
+    } else { if(n.nextIndex[msg.from]>0) n.nextIndex[msg.from]--; }
+  }
+
+  proposeValue(v){
+    const ld=this.nodes.find(n=>n.state==='leader'&&n.alive);
+    if(!ld){this._log('No leader — cannot propose','error');return;}
+    ld.log.push({term:ld.term,value:v});
+    this._log('Leader N'+ld.id+' received: "'+v+'"');
+  }
+
+  toggleNode(id){
+    const n=this.nodes[id];n.alive=!n.alive;
+    if(!n.alive){
+      n.state='follower';n.votedFor=null;
+      this.messages=this.messages.filter(m=>m.to!==id&&m.from!==id);
+      this._log('Node '+id+' CRASHED','error');
+    } else {
+      this._resetTimer(n);
+      n.term=Math.max(n.term,...this.nodes.map(x=>x.term));
+      this._log('Node '+id+' recovered (timeout='+n.electionTimeout+')','success');
+    }
+    this.render();
+  }
+
+  // ---- RENDER ----
+  render(){
+    const sc={follower:{f:'#152540',s:'#58a6ff',t:'#58a6ff'},candidate:{f:'#3d2e00',s:'#d29922',t:'#d29922'},leader:{f:'#2a2a00',s:'#f0c040',t:'#f0c040'}};
+    for(let i=0;i<this.N;i++){
+      const n=this.nodes[i],el=this.nodeEls[i]; if(!el) continue;
+      const p=this.positions[i];
+
+      if(!n.alive){
+        el.circle.setAttribute('fill','#1a1a1a');el.circle.setAttribute('stroke','#484f58');
+        el.circle.setAttribute('stroke-dasharray','4,3');
+        el.stLbl.textContent='Crashed';el.stLbl.setAttribute('fill','#f85149');
+        el.deadMark.setAttribute('opacity',1);el.idLbl.setAttribute('opacity',.3);
+        el.arc.setAttribute('d','');
+        el.timerLbl.textContent='';
+      } else {
+        const c=sc[n.state];
+        el.circle.setAttribute('fill',c.f);el.circle.setAttribute('stroke',c.s);
+        el.circle.setAttribute('stroke-dasharray','none');
+        el.stLbl.textContent=n.state[0].toUpperCase()+n.state.slice(1);
+        el.stLbl.setAttribute('fill',c.t);
+        el.deadMark.setAttribute('opacity',0);el.idLbl.setAttribute('opacity',1);
+
+        // Arc: show timeout countdown for followers/candidates
+        if(n.state==='leader'){
+          el.arc.setAttribute('d','');
+          el.timerLbl.textContent='';
+        } else {
+          const frac=n.electionTimeout>0 ? n.electionTimer/n.electionTimeout : 0;
+          el.arc.setAttribute('d',arcPath(p.x,p.y,36,frac));
+          // Color: cyan for follower (healthy countdown), red-ish when low
+          const urgent=frac<0.3;
+          const arcColor=n.state==='candidate'?'#d29922':(urgent?'#f85149':'#39d2c0');
+          el.arc.setAttribute('stroke',arcColor);
+          el.arc.setAttribute('opacity',urgent?0.9:0.5);
+          el.timerLbl.textContent=n.electionTimer+'';
+          el.timerLbl.setAttribute('fill',arcColor);
+        }
+      }
+      el.tLbl.textContent='T:'+n.term;
+    }
+    this._renderSide();
+  }
+
+  _renderSide(){
+    const sd=document.getElementById('raft-states'),st=document.getElementById('raft-stats');
+    if(!sd||!st) return;
+    const dc={follower:'var(--blue)',candidate:'var(--orange)',leader:'var(--gold)'};
+    sd.innerHTML=this.nodes.map(n=>{
+      const col=n.alive?dc[n.state]:'var(--tx3)';
+      const timer=n.alive&&n.state!=='leader'?` timer:${n.electionTimer}/${n.electionTimeout}`:'';
+      const info=n.alive
+        ?`<b>N${n.id}</b> ${n.state} (T:${n.term})${timer} | log:${n.log.length}`
+        :`<b>N${n.id}</b> <span style="color:var(--red)">crashed</span>`;
+      return `<div class="node-state" onclick="app.sims.raft.toggleNode(${n.id});app.updateLog()"><div class="node-dot" style="background:${col}"></div><div class="node-info">${info}</div></div>`;
+    }).join('');
+    const alive=this.nodes.filter(n=>n.alive).length;
+    const ld=this.nodes.find(n=>n.state==='leader'&&n.alive);
+    const term=Math.max(...this.nodes.map(n=>n.term));
+    st.innerHTML=`
+      <div class="stat-row"><span>Tick</span><span>${this.tick}</span></div>
+      <div class="stat-row"><span>Alive Nodes</span><span>${alive}/${this.N}</span></div>
+      <div class="stat-row"><span>Current Term</span><span>${term}</span></div>
+      <div class="stat-row"><span>Leader</span><span>${ld?'N'+ld.id:'None'}</span></div>
+      <div class="stat-row"><span>Majority</span><span>${Math.floor(alive/2)+1}</span></div>
+      <div class="stat-row"><span>In-flight Msgs</span><span>${this.messages.length}</span></div>`;
+  }
+
+  destroy(){if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}}
+}
+
+// ============================================================
+//  SNOWMAN  (Snowball / Avalanche)
+// ============================================================
+class SnowmanSim {
+  constructor(){
+    this.dim=parseInt(document.getElementById('snow-n')?.value||'4');
+    this.eventLog=[]; this.nodeEls=[]; this.anims=[]; this.animId=null;
+    this._calcPositions();
+    this._initState();
+  }
+
+  _calcPositions(){
+    this.N=this.dim*this.dim;
+    this.positions=[];
+    // Fit grid into viewBox with dynamic spacing
+    const pad=50;
+    const avail=420; // usable space in viewBox
+    const sp=this.dim>1?avail/(this.dim-1):0;
+    for(let r=0;r<this.dim;r++) for(let c=0;c<this.dim;c++){
+      this.positions.push({x:pad+c*sp, y:pad+r*sp});
+    }
+    // viewBox sized to fit
+    this.vbSize=avail+pad*2;
+  }
+
+  _initState(){
+    this.round=0; this.eventLog=[]; this.anims=[];
+    this.params={
+      k:parseInt(document.getElementById('snow-k')?.value||'4'),
+      alpha:parseInt(document.getElementById('snow-alpha')?.value||'3'),
+      beta:parseInt(document.getElementById('snow-beta')?.value||'10')
+    };
+    // clamp k to N-1
+    if(this.params.k>=this.N) this.params.k=Math.max(1,this.N-1);
+    if(this.params.alpha>this.params.k) this.params.alpha=this.params.k;
+    this.nodes=[];
+    for(let i=0;i<this.N;i++){
+      this.nodes.push({id:i,pref:Math.random()<.5?0:1,conf:0,decided:false});
+    }
+    this._log(`Snowball initialized — ${this.N} nodes (${this.dim}\u00d7${this.dim}), preferences randomized`);
+  }
+
+  reset(){this._initState();this.buildSVG();this.render();}
+
+  /** Full rebuild: new dim → new positions → new state → new SVG */
+  resize(newDim){
+    this.dim=newDim;
+    this._calcPositions();
+    this._initState();
+    this.buildSVG();
+    this.render();
+  }
+
+  _log(m,t='info'){this.eventLog.push({tick:this.round,message:m,type:t})}
+
+  bindParams(){
+    const bind=(id,key)=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.addEventListener('input',()=>{
+        this.params[key]=parseInt(el.value);
+        document.getElementById(id+'-val').textContent=el.value;
+        if(key==='k'){
+          const ae=document.getElementById('snow-alpha');
+          if(parseInt(ae.value)>parseInt(el.value)){ae.value=el.value;this.params.alpha=parseInt(el.value);document.getElementById('snow-alpha-val').textContent=el.value;}
+          ae.max=el.value;
+        }
+      });
+    };
+    bind('snow-k','k'); bind('snow-alpha','alpha'); bind('snow-beta','beta');
+    // Grid dimension slider
+    const ne=document.getElementById('snow-n');
+    if(ne) ne.addEventListener('input',()=>{
+      document.getElementById('snow-n-val').textContent=ne.value;
+      this.resize(parseInt(ne.value));
+      if(window.app) app.updateLog();
+    });
+  }
+
+  // ---- SVG ----
+  buildSVG(){
+    const container=document.getElementById('snow-viz-area');
+    if(!container) return;
+    let old=container.querySelector('svg'); if(old) old.remove();
+    if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}
+
+    const vb=this.vbSize;
+    const s=sv('svg',{viewBox:`0 0 ${vb} ${vb}`,preserveAspectRatio:'xMidYMid meet'});
+
+    // grid lines
+    for(let r=0;r<this.dim;r++) for(let c=0;c<this.dim;c++){
+      const i=r*this.dim+c;
+      if(c<this.dim-1){
+        const j=i+1;
+        s.appendChild(sv('line',{x1:this.positions[i].x,y1:this.positions[i].y,x2:this.positions[j].x,y2:this.positions[j].y,stroke:'#1e2430','stroke-width':1}));
+      }
+      if(r<this.dim-1){
+        const j=i+this.dim;
+        s.appendChild(sv('line',{x1:this.positions[i].x,y1:this.positions[i].y,x2:this.positions[j].x,y2:this.positions[j].y,stroke:'#1e2430','stroke-width':1}));
+      }
+    }
+
+    // node radius scales with grid dimension
+    const nr=Math.max(10,Math.min(22,Math.round(160/this.dim)));
+    const fs=Math.max(7,Math.min(11,Math.round(80/this.dim)));
+    const cfs=Math.max(6,fs-2);
+    this._nr=nr;
+
+    this.nodeEls=[];
+    for(let i=0;i<this.N;i++){
+      const p=this.positions[i], n=this.nodes[i];
+      const g=sv('g',{cursor:'pointer'});
+      const confRing=sv('circle',{cx:p.x,cy:p.y,r:nr+6,fill:'none',stroke:'transparent','stroke-width':3});
+      const circle=sv('circle',{cx:p.x,cy:p.y,r:nr,fill:n.pref?'#152540':'#3d1515',stroke:n.pref?'#58a6ff':'#f85149','stroke-width':2});
+      const lbl=sv('text',{x:p.x,y:p.y-2,'text-anchor':'middle','dominant-baseline':'central',fill:'#fff','font-size':fs,'font-weight':'600'});
+      lbl.textContent=i;
+      const confLbl=sv('text',{x:p.x,y:p.y+nr*0.55,'text-anchor':'middle',fill:'#8b949e','font-size':cfs});
+      confLbl.textContent='';
+      const check=sv('text',{x:p.x,y:p.y-nr-8,'text-anchor':'middle',fill:'#3fb950','font-size':Math.max(9,fs),'font-weight':'bold',opacity:0});
+      check.textContent='\u2713';
+
+      g.append(confRing,circle,lbl,confLbl,check);
+      const idx=i;
+      g.addEventListener('click',()=>{this._toggleNode(idx);if(window.app)app.updateLog();});
+      s.appendChild(g);
+      this.nodeEls.push({circle,lbl,confLbl,confRing,check});
+    }
+
+    this.animLayer=sv('g');
+    s.appendChild(this.animLayer);
+    container.appendChild(s);
+    this._startAnimLoop();
+  }
+
+  _startAnimLoop(){
+    const loop=()=>{
+      const now=performance.now();
+      for(let i=this.anims.length-1;i>=0;i--){
+        const a=this.anims[i];
+        const t=Math.min(1,(now-a.st)/a.dur);
+        if(t>=1){a.el.remove();this.anims.splice(i,1);}
+        else{
+          a.el.setAttribute('cx',a.x1+(a.x2-a.x1)*t);
+          a.el.setAttribute('cy',a.y1+(a.y2-a.y1)*t);
+          if(t>0.7) a.el.setAttribute('opacity',1-(t-0.7)/0.3);
+        }
+      }
+      this.animId=requestAnimationFrame(loop);
+    };
+    this.animId=requestAnimationFrame(loop);
+  }
+
+  _toggleNode(id){
+    const n=this.nodes[id]; if(n.decided) return;
+    n.pref=1-n.pref; n.conf=0;
+    this._log('Node '+id+' manually flipped to '+(n.pref?'Blue':'Red'),'warn');
+    this.render();
+  }
+
+  step(){
+    this.round++;
+    const changes=[];
+    let flipped=0,newDec=0;
+    for(const n of this.nodes){
+      if(n.decided){changes.push(null);continue;}
+      const others=this.nodes.filter(x=>x.id!==n.id).map(x=>x.id);
+      const sample=shuffle(others).slice(0,this.params.k);
+      const counts=[0,0];
+      for(const sid of sample) counts[this.nodes[sid].pref]++;
+      let np=n.pref,nc=n.conf;
+      for(let p=0;p<2;p++){
+        if(counts[p]>=this.params.alpha){
+          if(p===n.pref) nc++; else {np=p;nc=1;flipped++;}
+          break;
+        }
+      }
+      changes.push({pref:np,conf:nc,sample,counts});
+    }
+    for(let i=0;i<this.N;i++){
+      const c=changes[i]; if(!c) continue;
+      const n=this.nodes[i];
+      n.pref=c.pref;n.conf=c.conf;
+      if(n.conf>=this.params.beta&&!n.decided){n.decided=true;newDec++;}
+    }
+
+    // Animate sampling dots for a subset
+    const showCount=Math.min(5,Math.ceil(this.N/4));
+    const shown=shuffle([...Array(this.N).keys()].filter(i=>changes[i])).slice(0,showCount);
+    const speed=window.app?app.speed:600;
+    const dotR=Math.max(2,Math.min(4,Math.round(30/this.dim)));
+    for(const i of shown){
+      const c=changes[i]; if(!c||!c.sample) continue;
+      const fromP=this.positions[i];
+      for(const sid of c.sample){
+        const toP=this.positions[sid];
+        const pref=this.nodes[sid].pref;
+        const dot=sv('circle',{r:dotR,fill:pref?'#58a6ff':'#f85149',opacity:.85,cx:fromP.x,cy:fromP.y});
+        if(this.animLayer) this.animLayer.appendChild(dot);
+        this.anims.push({el:dot,x1:fromP.x,y1:fromP.y,x2:toP.x,y2:toP.y,st:performance.now()+Math.random()*80,dur:speed*0.7});
+      }
+    }
+
+    const prefs=[0,0],dec=[0,0];
+    for(const n of this.nodes){prefs[n.pref]++;if(n.decided)dec[n.pref]++;}
+    this._log(`Round ${this.round}: Red ${prefs[0]} | Blue ${prefs[1]} | Decided ${dec[0]+dec[1]}/${this.N}`
+      +(flipped?` (${flipped} flipped)`:'')+(newDec?` — ${newDec} NEW decision(s)!`:''),
+      newDec?'success':'info');
+    if(dec[0]+dec[1]===this.N) this._log('All nodes reached consensus!','milestone');
+    this.render();
+  }
+
+  render(){
+    const fills=['#3d1515','#152540'],strokes=['#f85149','#58a6ff'];
+    for(let i=0;i<this.N;i++){
+      const n=this.nodes[i],el=this.nodeEls[i]; if(!el) continue;
+      el.circle.setAttribute('fill',fills[n.pref]);
+      el.circle.setAttribute('stroke',n.decided?'#3fb950':strokes[n.pref]);
+      el.circle.setAttribute('stroke-width',n.decided?3:2);
+      const confRatio=Math.min(1,n.conf/this.params.beta);
+      el.confRing.setAttribute('stroke',n.decided?'#3fb950':strokes[n.pref]);
+      el.confRing.setAttribute('opacity',confRatio*0.6);
+      el.confRing.setAttribute('stroke-width',2+confRatio*4);
+      if(n.decided){
+        el.confLbl.textContent='';
+        el.check.setAttribute('opacity',1);
+      } else {
+        el.confLbl.textContent=n.conf>0?'c:'+n.conf:'';
+        el.check.setAttribute('opacity',0);
+      }
+    }
+    this._renderSide();
+  }
+
+  _renderSide(){
+    const bar=document.getElementById('snow-bar');
+    const dist=document.getElementById('snow-dist');
+    const stats=document.getElementById('snow-stats');
+    if(!bar) return;
+    const prefs=[0,0],dec=[0,0];
+    let totalConf=0,maxConf=0;
+    for(const n of this.nodes){prefs[n.pref]++;if(n.decided)dec[n.pref]++;totalConf+=n.conf;maxConf=Math.max(maxConf,n.conf);}
+    bar.innerHTML=`<div class="bar-seg" style="width:${prefs[0]/this.N*100}%;background:var(--red)"></div>`+
+      `<div class="bar-seg" style="width:${prefs[1]/this.N*100}%;background:var(--blue)"></div>`;
+    dist.innerHTML=`
+      <div class="stat-row"><span style="color:var(--red)">Red</span><span>${prefs[0]} (${dec[0]} decided)</span></div>
+      <div class="stat-row"><span style="color:var(--blue)">Blue</span><span>${prefs[1]} (${dec[1]} decided)</span></div>`;
+    stats.innerHTML=`
+      <div class="stat-row"><span>Round</span><span>${this.round}</span></div>
+      <div class="stat-row"><span>Nodes</span><span>${this.N} (${this.dim}\u00d7${this.dim})</span></div>
+      <div class="stat-row"><span>Decided</span><span>${dec[0]+dec[1]}/${this.N}</span></div>
+      <div class="stat-row"><span>Avg Confidence</span><span>${this.N?(totalConf/this.N).toFixed(1):'0'}</span></div>
+      <div class="stat-row"><span>Max Confidence</span><span>${maxConf}</span></div>
+      <div class="stat-row"><span>k / &alpha; / &beta;</span><span>${this.params.k} / ${this.params.alpha} / ${this.params.beta}</span></div>`;
+  }
+
+  destroy(){if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}}
+}
+
+// ============================================================
+//  PROOF OF WORK
+// ============================================================
+class PowSim {
+  constructor(){
+    this.eventLog=[];
+    this.colors=['#58a6ff','#f0c040','#3fb950','#f85149','#bc8cff','#39d2c0'];
+    this.names=['Alice','Bob','Carol','Dave','Eve','Frank'];
+    this._initState();
+  }
+
+  _initState(){
+    this.tick=0;this.eventLog=[];
+    this.difficulty=parseInt(document.getElementById('pow-diff')?.value||'2');
+    this.minerCount=parseInt(document.getElementById('pow-miners-count')?.value||'3');
+    this.chain=[{index:0,prevHash:'0000000000000000',data:'Genesis',nonce:0,hash:'0000000000000000',minerName:'System'}];
+    this.miners=[];
+    for(let i=0;i<this.minerCount;i++){
+      this.miners.push({id:i,name:this.names[i],color:this.colors[i],nonce:randInt(0,1000),totalHashes:0,blocksFound:0,lastHash:'',lastNonce:0,history:[],syncMsg:''});
+    }
+    this.totalHashes=0;
+    this._log('Mining initialized — Genesis block created');
+  }
+
+  reset(){this._initState();this.render();}
+  _log(m,t='info'){this.eventLog.push({tick:this.tick,message:m,type:t})}
+
+  bindParams(){
+    const de=document.getElementById('pow-diff'),me=document.getElementById('pow-miners-count');
+    if(de) de.addEventListener('input',()=>{
+      this.difficulty=parseInt(de.value);
+      document.getElementById('pow-diff-val').textContent=de.value;
+      document.getElementById('pow-target').textContent='0'.repeat(this.difficulty);
+    });
+    if(me) me.addEventListener('input',()=>{
+      const nc=parseInt(me.value);
+      document.getElementById('pow-miners-val').textContent=me.value;
+      while(this.miners.length<nc){const i=this.miners.length;this.miners.push({id:i,name:this.names[i],color:this.colors[i],nonce:randInt(0,1000),totalHashes:0,blocksFound:0,lastHash:'',lastNonce:0,history:[],syncMsg:''});}
+      while(this.miners.length>nc) this.miners.pop();
+      this.minerCount=nc; this.render();
+    });
+  }
+
+  get hashesPerStep(){
+    const s=window.app?app.speed:600;
+    if(s<100) return 80; if(s<300) return 40; if(s<600) return 15; return 5;
+  }
+
+  step(){
+    this.tick++;
+    const target='0'.repeat(this.difficulty);
+    const prev=this.chain[this.chain.length-1];
+    for(const m of this.miners){
+      m.syncMsg='Mining block #'+(prev.index+1)+' on '+prev.hash.substring(0,8)+'…';
+      for(let i=0;i<this.hashesPerStep;i++){
+        m.nonce++;m.totalHashes++;this.totalHashes++;
+        const input=`${prev.index+1}|${prev.hash}|tx${prev.index+1}|${m.name}|${m.nonce}`;
+        const hash=computeHash(input);
+        m.lastHash=hash;m.lastNonce=m.nonce;
+        if(hash.startsWith(target)){
+          this.chain.push({index:prev.index+1,prevHash:prev.hash,data:'tx'+String(prev.index+1),nonce:m.nonce,hash,minerName:m.name,minerColor:m.color});
+          m.blocksFound++;
+          m.history.unshift({nonce:m.nonce,hash,found:true});if(m.history.length>6)m.history.pop();
+          this._log(`${m.name} mined block #${this.chain.length-1}! Hash: ${hash}`,'success');
+          for(const x of this.miners){x.nonce=randInt(0,10000);x.syncMsg='Synced block #'+(this.chain.length-1)+' from '+m.name;
+            if(x!==m)x.history.unshift({nonce:0,hash,found:false,sync:m.name});if(x.history.length>6)x.history.pop();}
+          this.render(); return;
+        }
+      }
+      // record last attempt this tick
+      m.history.unshift({nonce:m.lastNonce,hash:m.lastHash,found:false});if(m.history.length>6)m.history.pop();
+    }
+    this.render();
+  }
+
+  render(){this._renderChain();this._renderMiners();this._renderSide();}
+
+  _renderChain(){
+    const el=document.getElementById('pow-chain'); if(!el) return;
+    el.innerHTML=this.chain.map((b,i)=>{
+      const zeros=b.hash.match(/^0*/)[0];const rest=b.hash.substring(zeros.length,14);
+      const hh=`<span class="mono"><span class="zeros">${zeros}</span>${rest}\u2026</span>`;
+      return(i?'<div class="chain-arrow">\u2192</div>':'')+
+        `<div class="blk${i===0?' genesis':''}"><div class="blk-num">#${b.index}</div>`+
+        (i?`<div class="blk-miner" style="color:${b.minerColor||'var(--orange)'}">${b.minerName}</div>`:'')+
+        `<div class="blk-hash">${hh}</div></div>`;
+    }).join('');
+    el.scrollLeft=el.scrollWidth;
+  }
+
+  _renderMiners(){
+    const el=document.getElementById('pow-miners'); if(!el) return;
+    el.innerHTML=this.miners.map(m=>{
+      const stateHtml=`<div class="miner-state">${m.syncMsg||'Idle'}</div>`;
+      const memHtml=m.history.map(h=>{
+        if(h.sync) return `<div class="mem-row mono" style="color:var(--cyan)">synced #${h.hash.substring(0,8)}… from ${h.sync}</div>`;
+        const z=h.hash.match(/^0*/)?.[0]||'';const r=h.hash.substring(z.length,z.length+6);
+        return `<div class="mem-row${h.found?' found':''} mono">${fmt(h.nonce)} \u2192 ${z?'<span class="zeros">'+z+'</span>':''}${r}\u2026 ${h.found?'\u2713':''}</div>`;
+      }).join('');
+      // miner's known chain (latest on top, last 4 blocks)
+      const chainView=this.chain.slice().reverse().slice(0,4).map(b=>{
+        const z=b.hash.match(/^0*/)[0];const rr=b.hash.substring(z.length,z.length+6);
+        return `<div class="mchain-row mono"><span class="mc-num">#${b.index}</span><span class="mc-hash">${z}</span>${rr}\u2026 <span style="color:${b.minerColor||'var(--purple)'}">${b.minerName}</span></div>`;
+      }).join('');
+      return `<div class="miner-card"><div class="miner-name"><span class="mdot" style="background:${m.color}"></span>${m.name}</div>
+        ${stateHtml}<div class="miner-mem">${memHtml}</div>
+        <div class="miner-chain">${chainView||'<span style="color:var(--tx3)">genesis only</span>'}</div>
+        <div class="miner-stat">Hashes: ${fmt(m.totalHashes)}</div>
+        <div class="miner-blocks">${m.blocksFound} block${m.blocksFound!==1?'s':''} found</div></div>`;
+    }).join('');
+  }
+
+  _renderSide(){
+    const el=document.getElementById('pow-stats'); if(!el) return;
+    const avg=this.chain.length>1?Math.round(this.totalHashes/(this.chain.length-1)):'\u2014';
+    el.innerHTML=`
+      <div class="stat-row"><span>Tick</span><span>${this.tick}</span></div>
+      <div class="stat-row"><span>Blocks Mined</span><span>${this.chain.length-1}</span></div>
+      <div class="stat-row"><span>Total Hashes</span><span>${fmt(this.totalHashes)}</span></div>
+      <div class="stat-row"><span>Avg Hashes/Block</span><span>${typeof avg==='number'?fmt(avg):avg}</span></div>
+      <div class="stat-row"><span>Difficulty</span><span>${this.difficulty} (${'0'.repeat(this.difficulty)}\u2026)</span></div>
+      <div class="stat-row"><span>Active Miners</span><span>${this.miners.length}</span></div>`;
+  }
+
+  destroy(){}
+}
+
+// ============================================================
+//  TENDERMINT BFT
+// ============================================================
+class TendermintSim {
+  constructor(){
+    this.N=parseInt(document.getElementById('tend-n')?.value||'7');
+    this.eventLog=[];this.nodeEls=[];this.anims=[];this.animId=null;
+    this._calcPos();this._initState();
+  }
+  _calcPos(){
+    this.positions=[];
+    for(let i=0;i<this.N;i++){const a=-Math.PI/2+i*2*Math.PI/this.N;this.positions.push({x:260+140*Math.cos(a),y:200+140*Math.sin(a)});}
+    this.threshold=Math.floor(this.N*2/3)+1;
+  }
+  _initState(){
+    this.height=1;this.round=0;this.tick=0;this.eventLog=[];this.anims=[];
+    this.phase='propose';this.proposalValid=false;this.voteCount=0;
+    this.validators=[];for(let i=0;i<this.N;i++) this.validators.push({id:i,alive:true});
+    this.chain=[];
+    this._log('Tendermint initialized — '+this.N+' validators, 2/3 threshold='+this.threshold);
+  }
+  reset(){this._initState();this.buildSVG();this.render();}
+  resize(n){this.N=n;this._calcPos();this._initState();this.buildSVG();this.render();}
+  _log(m,t='info'){this.eventLog.push({tick:this.tick,message:m,type:t});}
+  get proposerId(){return(this.height+this.round)%this.N;}
+
+  buildSVG(){
+    const box=document.getElementById('tend-viz-area');if(!box)return;
+    let old=box.querySelector('svg');if(old)old.remove();
+    if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}
+    const s=sv('svg',{viewBox:'0 0 520 440',preserveAspectRatio:'xMidYMid meet'});
+    // edges
+    for(let i=0;i<this.N;i++)for(let j=i+1;j<this.N;j++)
+      s.appendChild(sv('line',{x1:this.positions[i].x,y1:this.positions[i].y,x2:this.positions[j].x,y2:this.positions[j].y,stroke:'#1e2430','stroke-width':1,'stroke-dasharray':'5,5'}));
+    // center display
+    const cbg=sv('circle',{cx:260,cy:200,r:52,fill:'#161b22',stroke:'#30363d','stroke-width':2});
+    this.voteArc=sv('path',{d:'',fill:'none',stroke:'#58a6ff','stroke-width':4,'stroke-linecap':'round'});
+    // threshold marker
+    const tf=this.threshold/this.N,ta=tf*2*Math.PI;
+    const tmk=sv('line',{x1:260+46*Math.sin(ta),y1:200-46*Math.cos(ta),x2:260+58*Math.sin(ta),y2:200-58*Math.cos(ta),stroke:'#d29922','stroke-width':2});
+    this.phaseLbl=sv('text',{x:260,y:193,'text-anchor':'middle',fill:'#8b949e','font-size':'10'});
+    this.voteLbl=sv('text',{x:260,y:210,'text-anchor':'middle',fill:'#e6edf3','font-size':'13','font-weight':'bold'});
+    s.append(cbg,this.voteArc,tmk,this.phaseLbl,this.voteLbl);
+    // validator nodes
+    this.nodeEls=[];
+    for(let i=0;i<this.N;i++){
+      const p=this.positions[i],g=sv('g',{cursor:'pointer'});
+      const crown=sv('text',{x:p.x,y:p.y-30,'text-anchor':'middle',fill:'#f0c040','font-size':'12',opacity:0});crown.textContent='\u2666';
+      const circle=sv('circle',{cx:p.x,cy:p.y,r:24,fill:'#152540',stroke:'#58a6ff','stroke-width':2});
+      const lbl=sv('text',{x:p.x,y:p.y+1,'text-anchor':'middle','dominant-baseline':'central',fill:'#fff','font-size':'12','font-weight':'bold'});lbl.textContent='V'+i;
+      const dead=sv('text',{x:p.x,y:p.y+2,'text-anchor':'middle','dominant-baseline':'central',fill:'#f85149','font-size':'22','font-weight':'bold',opacity:0});dead.textContent='\u2715';
+      g.append(crown,circle,lbl,dead);
+      const idx=i;g.addEventListener('click',()=>{this.toggleNode(idx);if(window.app)app.updateLog();});
+      s.appendChild(g);this.nodeEls.push({circle,lbl,crown,dead});
+    }
+    this.msgLayer=sv('g');s.appendChild(this.msgLayer);
+    box.appendChild(s);this._startAnim();
+  }
+  _startAnim(){
+    const loop=()=>{const now=performance.now();
+      for(let i=this.anims.length-1;i>=0;i--){const a=this.anims[i];const t=Math.min(1,(now-a.st)/a.dur);
+        if(t>=1){a.el.remove();this.anims.splice(i,1);}
+        else{a.el.setAttribute('cx',a.x1+(a.x2-a.x1)*t);a.el.setAttribute('cy',a.y1+(a.y2-a.y1)*t);if(t>.7)a.el.setAttribute('opacity',1-(t-.7)/.3);}
+      }this.animId=requestAnimationFrame(loop);};this.animId=requestAnimationFrame(loop);
+  }
+  _dot(fx,fy,tx,ty,color){
+    if(!this.msgLayer)return;const d=sv('circle',{r:4,fill:color,opacity:.85,cx:fx,cy:fy});
+    this.msgLayer.appendChild(d);const sp=window.app?app.speed:600;
+    this.anims.push({el:d,x1:fx,y1:fy,x2:tx,y2:ty,st:performance.now()+Math.random()*80,dur:sp*.6});
+  }
+  toggleNode(id){const v=this.validators[id];v.alive=!v.alive;
+    this._log('V'+id+(v.alive?' recovered':' CRASHED'),v.alive?'success':'error');this.render();}
+
+  step(){
+    this.tick++;const pid=this.proposerId;
+    switch(this.phase){
+    case 'propose':{
+      const p=this.validators[pid];
+      if(p.alive){this.proposalValid=true;this._log('V'+pid+' proposes block #'+this.height+' (round '+this.round+')');
+        for(const v of this.validators)if(v.id!==pid&&v.alive)this._dot(this.positions[pid].x,this.positions[pid].y,this.positions[v.id].x,this.positions[v.id].y,'#f0c040');
+      }else{this.proposalValid=false;this._log('V'+pid+' is OFFLINE — no proposal','error');}
+      this.phase='prevote';break;}
+    case 'prevote':{
+      const alive=this.validators.filter(v=>v.alive).length;
+      this.voteCount=this.proposalValid?alive:0;
+      const ok=this.voteCount>=this.threshold;
+      this._log('Prevote: '+this.voteCount+'/'+this.N+' (need '+this.threshold+')'+(ok?' — POLKA!':''),ok?'success':(this.voteCount>0?'info':'error'));
+      for(const v of this.validators)if(v.alive)this._dot(this.positions[v.id].x,this.positions[v.id].y,260,200,this.proposalValid?'#58a6ff':'#f85149');
+      this.phase=ok?'precommit':'timeout';break;}
+    case 'precommit':{
+      const alive=this.validators.filter(v=>v.alive).length;this.voteCount=alive;
+      const ok=this.voteCount>=this.threshold;
+      this._log('Precommit: '+this.voteCount+'/'+this.N+' (need '+this.threshold+')'+(ok?' — COMMITTED!':''),ok?'success':'warn');
+      for(const v of this.validators)if(v.alive)this._dot(this.positions[v.id].x,this.positions[v.id].y,260,200,'#3fb950');
+      this.phase=ok?'commit':'timeout';break;}
+    case 'commit':
+      this.chain.push({height:this.height,proposer:pid,round:this.round});
+      this._log('Block #'+this.height+' finalized by V'+pid+' (round '+this.round+')','milestone');
+      this.height++;this.round=0;this.voteCount=0;this.phase='propose';break;
+    case 'timeout':
+      this.round++;this.voteCount=0;
+      this._log('Round '+(this.round-1)+' timed out — round '+this.round+', proposer V'+this.proposerId,'warn');
+      this.phase='propose';break;
+    }
+    this.render();
+  }
+
+  render(){
+    for(let i=0;i<this.N;i++){
+      const v=this.validators[i],el=this.nodeEls[i];if(!el)continue;
+      const isP=i===this.proposerId;
+      if(!v.alive){el.circle.setAttribute('fill','#1a1a1a');el.circle.setAttribute('stroke','#484f58');el.circle.setAttribute('stroke-dasharray','4,3');
+        el.dead.setAttribute('opacity',1);el.lbl.setAttribute('opacity',.3);el.crown.setAttribute('opacity',0);
+      }else{el.circle.setAttribute('fill',isP?'#2a2a00':'#152540');el.circle.setAttribute('stroke',isP?'#f0c040':'#58a6ff');
+        el.circle.setAttribute('stroke-dasharray','none');el.dead.setAttribute('opacity',0);el.lbl.setAttribute('opacity',1);el.crown.setAttribute('opacity',isP?1:0);}
+    }
+    const pc={propose:'#f0c040',prevote:'#58a6ff',precommit:'#3fb950',commit:'#3fb950',timeout:'#f85149'};
+    if(this.phaseLbl){this.phaseLbl.textContent=this.phase.toUpperCase();this.phaseLbl.setAttribute('fill',pc[this.phase]||'#8b949e');}
+    if(this.voteLbl){this.voteLbl.textContent=(this.phase==='prevote'||this.phase==='precommit')?this.voteCount+'/'+this.N:'H:'+this.height;}
+    if(this.voteArc){const f=this.voteCount/this.N;this.voteArc.setAttribute('d',arcPath(260,200,52,f));
+      this.voteArc.setAttribute('stroke',this.voteCount>=this.threshold?'#3fb950':(pc[this.phase]||'#58a6ff'));}
+    this._renderSide();
+  }
+  _renderSide(){
+    const sd=document.getElementById('tend-states'),st=document.getElementById('tend-stats');if(!sd||!st)return;
+    sd.innerHTML=this.validators.map(v=>{const isP=v.id===this.proposerId;
+      const col=v.alive?(isP?'var(--gold)':'var(--blue)'):'var(--tx3)';
+      const info=v.alive?`<b>V${v.id}</b>${isP?' <span style="color:var(--gold)">PROPOSER</span>':''}`:`<b>V${v.id}</b> <span style="color:var(--red)">crashed</span>`;
+      return `<div class="node-state" onclick="app.sims.tendermint.toggleNode(${v.id});app.updateLog()"><div class="node-dot" style="background:${col}"></div><div class="node-info">${info}</div></div>`;}).join('');
+    const alive=this.validators.filter(v=>v.alive).length;
+    st.innerHTML=`<div class="stat-row"><span>Phase</span><span>${this.phase.toUpperCase()}</span></div>
+      <div class="stat-row"><span>Block Height</span><span>${this.height}</span></div>
+      <div class="stat-row"><span>Round</span><span>${this.round}</span></div>
+      <div class="stat-row"><span>Proposer</span><span>V${this.proposerId}</span></div>
+      <div class="stat-row"><span>Alive</span><span>${alive}/${this.N}</span></div>
+      <div class="stat-row"><span>Threshold (2/3)</span><span>${this.threshold}/${this.N}</span></div>
+      <div class="stat-row"><span>Blocks Finalized</span><span>${this.chain.length}</span></div>
+      <div class="stat-row"><span>Max Faults</span><span>${this.N-this.threshold}</span></div>`;
+  }
+  bindParams(){const ne=document.getElementById('tend-n');if(ne)ne.addEventListener('input',()=>{
+    document.getElementById('tend-n-val').textContent=ne.value;this.resize(parseInt(ne.value));if(window.app)app.updateLog();});}
+  destroy(){if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}}
+}
+
+// ============================================================
+//  DPOS
+// ============================================================
+class DPoSSim {
+  constructor(){
+    this.eventLog=[];this.nodeEls=[];
+    this.cCount=7;this.seats=parseInt(document.getElementById('dpos-seats')?.value||'3');
+    this.names=['Atlas','Bolt','Cipher','Delta','Echo','Flux','Grid'];
+    this.clrs=['#58a6ff','#f0c040','#3fb950','#f85149','#bc8cff','#39d2c0','#ff7b72'];
+    this._initState();
+  }
+  _initState(){
+    this.slot=0;this.epoch=0;this.slotInEpoch=0;this.eventLog=[];
+    this.candidates=[];
+    for(let i=0;i<this.cCount;i++) this.candidates.push({id:i,name:this.names[i],color:this.clrs[i],votes:randInt(10,80),elected:false,alive:true,blocksProduced:0,missed:0});
+    this.schedule=[];this.chain=[];this._elect();
+    this._log('DPoS initialized — '+this.cCount+' candidates, '+this.seats+' seats');
+  }
+  reset(){this._initState();this.buildSVG();this._buildControls();this.render();}
+  _log(m,t='info'){this.eventLog.push({tick:this.slot,message:m,type:t});}
+  _elect(){
+    const sorted=[...this.candidates].sort((a,b)=>b.votes-a.votes);
+    for(const c of this.candidates)c.elected=false;
+    this.schedule=[];
+    for(let i=0;i<this.seats&&i<sorted.length;i++){sorted[i].elected=true;this.schedule.push(sorted[i].id);}
+  }
+  setVotes(id,v){this.candidates[id].votes=v;this._elect();this.render();}
+  toggleCandidate(id){const c=this.candidates[id];c.alive=!c.alive;
+    this._log(c.name+(c.alive?' back online':' went OFFLINE'),c.alive?'success':'error');this.render();}
+
+  buildSVG(){
+    const box=document.getElementById('dpos-viz-area');if(!box)return;
+    let old=box.querySelector('svg');if(old)old.remove();
+    const s=sv('svg',{viewBox:'0 0 540 420',preserveAspectRatio:'xMidYMid meet'});
+    const n=this.cCount,sp=440/(n+1);
+    this.nodeEls=[];
+    for(let i=0;i<n;i++){
+      const x=50+sp*(i+.5),y=55,c=this.candidates[i],g=sv('g',{cursor:'pointer'});
+      const bar=sv('rect',{x:x-14,y:300,width:28,height:0,rx:3,fill:c.color,opacity:.6});
+      const ring=sv('circle',{cx:x,cy:y,r:28,fill:'none',stroke:'#3fb950','stroke-width':3,opacity:0});
+      const circle=sv('circle',{cx:x,cy:y,r:22,fill:'#152540',stroke:c.color,'stroke-width':2});
+      const lbl=sv('text',{x:x,y:y+1,'text-anchor':'middle','dominant-baseline':'central',fill:'#fff','font-size':'10','font-weight':'600'});
+      lbl.textContent=c.name.substring(0,2);
+      const nm=sv('text',{x:x,y:y+38,'text-anchor':'middle',fill:'#8b949e','font-size':'9'});nm.textContent=c.name;
+      const vlbl=sv('text',{x:x,y:310,'text-anchor':'middle',fill:'#8b949e','font-size':'9'});
+      const dead=sv('text',{x:x,y:y+2,'text-anchor':'middle','dominant-baseline':'central',fill:'#f85149','font-size':'20','font-weight':'bold',opacity:0});dead.textContent='\u2715';
+      g.append(bar,ring,circle,lbl,nm,vlbl,dead);
+      const idx=i;g.addEventListener('click',()=>{this.toggleCandidate(idx);if(window.app)app.updateLog();});
+      s.appendChild(g);this.nodeEls.push({circle,bar,lbl,nm,vlbl,ring,dead,x,y});
+    }
+    s.appendChild(sv('line',{x1:30,y1:300,x2:510,y2:300,stroke:'#30363d','stroke-width':1}));
+    this.epochLbl=sv('text',{x:20,y:340,fill:'#8b949e','font-size':'10'});s.appendChild(this.epochLbl);
+    this.chainGrp=sv('g');s.appendChild(this.chainGrp);
+    box.appendChild(s);
+  }
+  _buildControls(){
+    const el=document.getElementById('dpos-votes');if(!el)return;
+    el.innerHTML=this.candidates.map(c=>
+      `<div class="param-row"><label style="color:${c.color};min-width:50px">${c.name}</label>`+
+      `<input type="range" min="0" max="100" value="${c.votes}" `+
+      `oninput="app.sims.dpos.setVotes(${c.id},+this.value);document.getElementById('dv${c.id}').textContent=this.value">`+
+      `<span class="param-val" id="dv${c.id}">${c.votes}</span></div>`).join('');
+  }
+
+  step(){
+    if(this.slotInEpoch===0&&this.slot>0){this._elect();this.epoch++;
+      this._log('--- Epoch '+this.epoch+': '+this.schedule.map(id=>this.candidates[id].name).join(', ')+' ---','milestone');}
+    if(!this.schedule.length){this._log('No delegates!','error');this.render();return;}
+    const did=this.schedule[this.slotInEpoch%this.schedule.length],d=this.candidates[did];
+    this.slot++;
+    if(d.alive){this.chain.push({slot:this.slot,name:d.name,color:d.color});d.blocksProduced++;
+      this._log(d.name+' produced block #'+this.slot,'success');
+    }else{d.missed++;this._log(d.name+' MISSED slot #'+this.slot+' (offline)','error');}
+    this.slotInEpoch++;if(this.slotInEpoch>=this.schedule.length)this.slotInEpoch=0;
+    this.render();
+  }
+
+  render(){
+    const maxV=Math.max(1,...this.candidates.map(c=>c.votes)),maxH=180;
+    for(let i=0;i<this.cCount;i++){
+      const c=this.candidates[i],el=this.nodeEls[i];if(!el)continue;
+      const bh=(c.votes/maxV)*maxH;
+      el.bar.setAttribute('y',300-bh);el.bar.setAttribute('height',bh);el.bar.setAttribute('opacity',c.elected?.7:.2);
+      el.circle.setAttribute('stroke',c.elected?'#f0c040':(c.alive?c.color:'#484f58'));
+      el.circle.setAttribute('stroke-width',c.elected?3:2);el.circle.setAttribute('fill',c.alive?'#152540':'#1a1a1a');
+      const isA=this.schedule.length>0&&this.schedule[this.slotInEpoch%this.schedule.length]===c.id;
+      el.ring.setAttribute('opacity',isA&&c.elected?.8:0);
+      el.vlbl.textContent=c.votes;el.vlbl.setAttribute('y',300-bh-6);el.vlbl.setAttribute('fill',c.elected?'#e6edf3':'#484f58');
+      el.dead.setAttribute('opacity',c.alive?0:1);el.lbl.setAttribute('opacity',c.alive?1:.3);
+    }
+    if(this.epochLbl)this.epochLbl.textContent='Epoch '+this.epoch+' | Slot '+this.slot+(this.schedule.length?' | Next: '+this.candidates[this.schedule[this.slotInEpoch%this.schedule.length]].name:'');
+    if(this.chainGrp){this.chainGrp.innerHTML='';const last=this.chain.slice(-8);
+      last.forEach((b,i)=>{const x=30+i*62;
+        const r=sv('rect',{x:x,y:355,width:54,height:40,rx:4,fill:'#21262d',stroke:b.color,'stroke-width':1.5});
+        const t1=sv('text',{x:x+27,y:372,'text-anchor':'middle',fill:'#e6edf3','font-size':'10','font-weight':'bold'});t1.textContent='#'+b.slot;
+        const t2=sv('text',{x:x+27,y:388,'text-anchor':'middle',fill:b.color,'font-size':'8'});t2.textContent=b.name;
+        this.chainGrp.append(r,t1,t2);
+      });}
+    this._renderSide();
+  }
+  _renderSide(){
+    const st=document.getElementById('dpos-stats');if(!st)return;
+    const tb=this.candidates.reduce((s,c)=>s+c.blocksProduced,0),tm=this.candidates.reduce((s,c)=>s+c.missed,0);
+    st.innerHTML=`<div class="stat-row"><span>Epoch</span><span>${this.epoch}</span></div>
+      <div class="stat-row"><span>Slot</span><span>${this.slot}</span></div>
+      <div class="stat-row"><span>Elected</span><span>${this.candidates.filter(c=>c.elected).length}/${this.cCount}</span></div>
+      <div class="stat-row"><span>Blocks</span><span>${tb}</span></div>
+      <div class="stat-row"><span>Missed</span><span>${tm}</span></div>
+      <div class="stat-row"><span>Miss Rate</span><span>${tb+tm>0?(tm/(tb+tm)*100).toFixed(1)+'%':'0%'}</span></div>`;
+  }
+  bindParams(){
+    const se=document.getElementById('dpos-seats');
+    if(se)se.addEventListener('input',()=>{this.seats=parseInt(se.value);document.getElementById('dpos-seats-val').textContent=se.value;
+      this._elect();this.slotInEpoch=0;this.render();});
+    document.getElementById('dpos-randomize')?.addEventListener('click',()=>{
+      for(const c of this.candidates)c.votes=randInt(10,80);this._elect();this.slotInEpoch=0;this._buildControls();this.render();if(window.app)app.updateLog();});
+  }
+  destroy(){}
+}
+
+// ============================================================
+//  APP
+// ============================================================
+class App {
+  constructor(){
+    this.sims={raft:new RaftSim(),snowman:new SnowmanSim(),pow:new PowSim(),tendermint:new TendermintSim(),dpos:new DPoSSim()};
+    this.activeTab='raft';
+    this.running=false;
+    this.intervalId=null;
+    this.speed=600;
+    this._bind();
+    this.sims.raft.buildSVG();this.sims.raft.render();
+    this.sims.snowman.bindParams();this.sims.pow.bindParams();
+    this.sims.tendermint.bindParams();this.sims.dpos.bindParams();this.sims.dpos._buildControls();
+    this._setTheme('raft');this.updateLog();
+  }
+
+  _bind(){
+    document.querySelectorAll('.nav-tab').forEach(t=>t.addEventListener('click',()=>this.switchTab(t.dataset.tab)));
+    document.getElementById('btn-start').addEventListener('click',()=>this.start());
+    document.getElementById('btn-pause').addEventListener('click',()=>this.pause());
+    document.getElementById('btn-step').addEventListener('click',()=>this.stepOnce());
+    document.getElementById('btn-reset').addEventListener('click',()=>this.resetSim());
+    document.getElementById('btn-clear-log').addEventListener('click',()=>{this.sims[this.activeTab].eventLog=[];this.updateLog();});
+    const sl=document.getElementById('speed-slider');
+    sl.addEventListener('input',()=>{
+      this.speed=Math.round(2050-parseInt(sl.value)*20);
+      document.getElementById('speed-display').textContent=this.speed+'ms';
+      if(this.running){this.pause();this.start();}
+    });
+    document.getElementById('raft-propose-btn').addEventListener('click',()=>{
+      const inp=document.getElementById('raft-propose-input');
+      const v=inp.value.trim(); if(!v) return;
+      this.sims.raft.proposeValue(v);inp.value='';this.updateLog();
+    });
+    document.getElementById('raft-propose-input').addEventListener('keydown',e=>{
+      if(e.key==='Enter') document.getElementById('raft-propose-btn').click();
+    });
+  }
+
+  switchTab(tab){
+    this.pause();
+    this.activeTab=tab;
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+    document.querySelectorAll('.algo-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+tab));
+    if(tab==='raft') this.sims.raft.buildSVG();
+    else if(tab==='snowman') this.sims.snowman.buildSVG();
+    else if(tab==='tendermint') this.sims.tendermint.buildSVG();
+    else if(tab==='dpos'){this.sims.dpos.buildSVG();this.sims.dpos._buildControls();}
+    this._setTheme(tab);this.sims[tab].render();this.updateLog();
+  }
+
+  start(){
+    if(this.running) return;
+    this.running=true;
+    document.getElementById('btn-start').disabled=true;
+    document.getElementById('btn-pause').disabled=false;
+    this.intervalId=setInterval(()=>{this.sims[this.activeTab].step();this.updateLog();},this.speed);
+  }
+
+  pause(){
+    this.running=false;
+    document.getElementById('btn-start').disabled=false;
+    document.getElementById('btn-pause').disabled=true;
+    if(this.intervalId){clearInterval(this.intervalId);this.intervalId=null;}
+  }
+
+  stepOnce(){this.pause();this.sims[this.activeTab].step();this.updateLog();}
+  resetSim(){this.pause();this.sims[this.activeTab].reset();this.updateLog();}
+
+  _setTheme(tab){
+    const ac={raft:'#58a6ff',snowman:'#e84142',pow:'#f7931a',tendermint:'#a855f7',dpos:'#39d2c0'};
+    document.body.style.setProperty('--accent',ac[tab]||'#58a6ff');
+  }
+  updateLog(){
+    const entries=this.sims[this.activeTab].eventLog;
+    const el=document.getElementById('log-entries');
+    const lbl={snowman:'R',dpos:'S'}[this.activeTab]||'T';
+    const vis=entries.slice(-300);
+    el.innerHTML=vis.map(e=>`<div class="log-entry ${e.type}"><span class="lt mono">[${lbl}:${e.tick}]</span>${e.message}</div>`).join('');
+    el.scrollTop=el.scrollHeight;
+  }
+}
+
+let app;
+document.addEventListener('DOMContentLoaded',()=>{app=new App();});
+</script>
+</body>
+</html>
